@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 830">
+  <style>
+    text { font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace; }
+    .title { fill: #ffffff; font-size: 24px; font-weight: 700; }
+    .subtitle { fill: #94a3b8; font-size: 13px; }
+    .name { fill: #ffffff; font-size: 15px; font-weight: 700; }
+    .sub { fill: #94a3b8; font-size: 12px; }
+    .tiny { fill: #94a3b8; font-size: 11px; }
+    .lane { font-size: 12px; font-weight: 700; letter-spacing: 1px; }
+    .foot { fill: #64748b; font-size: 12px; }
+  </style>
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+    </pattern>
+    <marker id="a-cyan" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee"/></marker>
+    <marker id="a-violet" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#a78bfa"/></marker>
+    <marker id="a-amber" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#fbbf24"/></marker>
+  </defs>
+
+  <rect width="1200" height="830" fill="#0f172a"/>
+  <rect width="1200" height="830" fill="url(#grid)"/>
+
+  <!-- title -->
+  <text x="40" y="48" class="title">field-notes</text>
+  <text x="40" y="74" class="subtitle">грабли, которые отлаживаешь один раз · одно хранилище для Claude Code и Codex</text>
+
+  <!-- lanes -->
+  <rect x="30" y="100" width="1140" height="190" rx="12" fill="none" stroke="#22d3ee" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="46" y="124" class="lane" fill="#22d3ee">ЦИКЛ · СНАЧАЛА ПОИСК, ПОТОМ ПОЧИНКА</text>
+  <rect x="30" y="310" width="1140" height="220" rx="12" fill="none" stroke="#a78bfa" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="46" y="334" class="lane" fill="#a78bfa">ХРАНИЛИЩЕ · ОДНО НА МАШИНУ, ОБЩЕЕ ДЛЯ АГЕНТОВ</text>
+  <rect x="30" y="550" width="1140" height="200" rx="12" fill="none" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="46" y="574" class="lane" fill="#fbbf24">ЖИЗНЬ ЗАМЕТКИ · ОТ ОБХОДА ДО ИСПРАВЛЕНИЯ У АВТОРА</text>
+
+  <!-- ===== lane A arrows ===== -->
+  <line x1="275" y1="192" x2="343" y2="192" stroke="#22d3ee" stroke-width="1.4" marker-end="url(#a-cyan)"/>
+  <line x1="565" y1="192" x2="633" y2="192" stroke="#22d3ee" stroke-width="1.4" marker-end="url(#a-cyan)"/>
+  <text x="600" y="182" class="tiny" text-anchor="middle">0 совп.</text>
+  <line x1="855" y1="192" x2="923" y2="192" stroke="#22d3ee" stroke-width="1.4" marker-end="url(#a-cyan)"/>
+  <path d="M 1035 234 L 1035 266 L 455 266 L 455 237" fill="none" stroke="#22d3ee" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#a-cyan)"/>
+  <text x="745" y="258" class="tiny" text-anchor="middle">в следующий раз — находится, а не отлаживается заново</text>
+
+  <!-- ===== lane A boxes ===== -->
+  <rect x="55" y="150" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="55" y="150" width="220" height="84" rx="6" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="165" y="178" class="name" text-anchor="middle">проблема</text>
+  <text x="165" y="200" class="sub" text-anchor="middle">знакомый симптом или</text>
+  <text x="165" y="218" class="sub" text-anchor="middle">инструмент соврал</text>
+
+  <rect x="345" y="150" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="345" y="150" width="220" height="84" rx="6" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="455" y="178" class="name" text-anchor="middle">сначала поиск</text>
+  <text x="455" y="200" class="sub" text-anchor="middle">fn.sh search: заголовок</text>
+  <text x="455" y="218" class="sub" text-anchor="middle">весит больше текста</text>
+
+  <rect x="635" y="150" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="635" y="150" width="220" height="84" rx="6" fill="rgba(59,130,246,0.3)" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="745" y="178" class="name" text-anchor="middle">разбор</text>
+  <text x="745" y="200" class="sub" text-anchor="middle">причина редко там,</text>
+  <text x="745" y="218" class="sub" text-anchor="middle">куда указывает симптом</text>
+
+  <rect x="925" y="150" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="925" y="150" width="220" height="84" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="1035" y="178" class="name" text-anchor="middle">запись</text>
+  <text x="1035" y="200" class="sub" text-anchor="middle">fn.sh new; похожая есть —</text>
+  <text x="1035" y="218" class="sub" text-anchor="middle">это обновление</text>
+
+  <!-- ===== lane B arrows ===== -->
+  <path d="M 275 382 L 305 382 L 305 410 L 343 410" fill="none" stroke="#a78bfa" stroke-width="1.4" marker-end="url(#a-violet)"/>
+  <path d="M 275 472 L 305 472 L 305 436 L 343 436" fill="none" stroke="#a78bfa" stroke-width="1.4" marker-end="url(#a-violet)"/>
+  <line x1="565" y1="423" x2="633" y2="423" stroke="#a78bfa" stroke-width="1.4" marker-end="url(#a-violet)"/>
+  <text x="600" y="413" class="tiny" text-anchor="middle">index</text>
+  <line x1="855" y1="423" x2="923" y2="423" stroke="#a78bfa" stroke-width="1.4" marker-end="url(#a-violet)"/>
+  <text x="890" y="413" class="tiny" text-anchor="middle">lint</text>
+
+  <!-- ===== lane B boxes ===== -->
+  <rect x="55" y="352" width="220" height="60" rx="6" fill="#0f172a"/>
+  <rect x="55" y="352" width="220" height="60" rx="6" fill="rgba(30,41,59,0.5)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="165" y="377" class="name" text-anchor="middle">Claude Code</text>
+  <text x="165" y="397" class="sub" text-anchor="middle">~/.claude/skills</text>
+
+  <rect x="55" y="442" width="220" height="60" rx="6" fill="#0f172a"/>
+  <rect x="55" y="442" width="220" height="60" rx="6" fill="rgba(30,41,59,0.5)" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="165" y="467" class="name" text-anchor="middle">Codex CLI</text>
+  <text x="165" y="487" class="sub" text-anchor="middle">~/.codex/skills</text>
+
+  <rect x="345" y="381" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="345" y="381" width="220" height="84" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="455" y="409" class="name" text-anchor="middle">notes/*.md</text>
+  <text x="455" y="431" class="sub" text-anchor="middle">frontmatter + разделы:</text>
+  <text x="455" y="449" class="sub" text-anchor="middle">симптом, причина, фикс</text>
+
+  <rect x="635" y="381" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="635" y="381" width="220" height="84" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="745" y="409" class="name" text-anchor="middle">INDEX.md</text>
+  <text x="745" y="431" class="sub" text-anchor="middle">собирается из заметок,</text>
+  <text x="745" y="449" class="sub" text-anchor="middle">руками не правится</text>
+
+  <rect x="925" y="381" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="925" y="381" width="220" height="84" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="1035" y="409" class="name" text-anchor="middle">проверка</text>
+  <text x="1035" y="431" class="sub" text-anchor="middle">устаревший индекс,</text>
+  <text x="1035" y="449" class="sub" text-anchor="middle">заглушки, секреты</text>
+
+  <text x="600" y="512" class="tiny" text-anchor="middle">пишут параллельно: каждый агент правит свою заметку, таблицу собирает скрипт под блокировкой</text>
+
+  <!-- ===== lane C arrows ===== -->
+  <line x1="275" y1="642" x2="343" y2="642" stroke="#fbbf24" stroke-width="1.4" marker-end="url(#a-amber)"/>
+  <line x1="565" y1="642" x2="633" y2="642" stroke="#fbbf24" stroke-width="1.4" marker-end="url(#a-amber)"/>
+  <line x1="855" y1="642" x2="923" y2="642" stroke="#fbbf24" stroke-width="1.4" marker-end="url(#a-amber)"/>
+  <text x="890" y="632" class="tiny" text-anchor="middle">touch</text>
+
+  <!-- ===== lane C boxes ===== -->
+  <rect x="55" y="600" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="55" y="600" width="220" height="84" rx="6" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="165" y="628" class="name" text-anchor="middle">active / workaround</text>
+  <text x="165" y="650" class="sub" text-anchor="middle">грабля живая,</text>
+  <text x="165" y="668" class="sub" text-anchor="middle">обход в заметке</text>
+
+  <rect x="345" y="600" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="345" y="600" width="220" height="84" rx="6" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="455" y="628" class="name" text-anchor="middle">issue-draft</text>
+  <text x="455" y="650" class="sub" text-anchor="middle">черновик для автора,</text>
+  <text x="455" y="668" class="sub" text-anchor="middle">пути и ключи замаскированы</text>
+
+  <rect x="635" y="600" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="635" y="600" width="220" height="84" rx="6" fill="rgba(136,19,55,0.4)" stroke="#fb7185" stroke-width="1.5"/>
+  <text x="745" y="628" class="name" text-anchor="middle">публикует человек</text>
+  <text x="745" y="650" class="sub" text-anchor="middle">перечитал, отправил,</text>
+  <text x="745" y="668" class="sub" text-anchor="middle">ссылка → upstream</text>
+
+  <rect x="925" y="600" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="925" y="600" width="220" height="84" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="1035" y="628" class="name" text-anchor="middle">fixed-upstream</text>
+  <text x="1035" y="650" class="sub" text-anchor="middle">починено у автора,</text>
+  <text x="1035" y="668" class="sub" text-anchor="middle">индекс показывает #issue</text>
+
+  <text x="600" y="728" class="tiny" text-anchor="middle">три и больше случая одного класса → status: promoted — заметка становится скиллом и остаётся как «почему»</text>
+
+  <text x="40" y="795" class="foot">скрипт не ходит в сеть и пишет только в хранилище; всё внешнее — решение человека</text>
+</svg>

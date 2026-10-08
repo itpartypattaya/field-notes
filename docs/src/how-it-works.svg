@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 830">
+  <style>
+    text { font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace; }
+    .title { fill: #ffffff; font-size: 24px; font-weight: 700; }
+    .subtitle { fill: #94a3b8; font-size: 13px; }
+    .name { fill: #ffffff; font-size: 15px; font-weight: 700; }
+    .sub { fill: #94a3b8; font-size: 12px; }
+    .tiny { fill: #94a3b8; font-size: 11px; }
+    .lane { font-size: 12px; font-weight: 700; letter-spacing: 1px; }
+    .foot { fill: #64748b; font-size: 12px; }
+  </style>
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+    </pattern>
+    <marker id="a-cyan" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee"/></marker>
+    <marker id="a-violet" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#a78bfa"/></marker>
+    <marker id="a-amber" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#fbbf24"/></marker>
+  </defs>
+
+  <rect width="1200" height="830" fill="#0f172a"/>
+  <rect width="1200" height="830" fill="url(#grid)"/>
+
+  <!-- title -->
+  <text x="40" y="48" class="title">field-notes</text>
+  <text x="40" y="74" class="subtitle">pitfalls you only debug once · one store shared by Claude Code and Codex</text>
+
+  <!-- lanes -->
+  <rect x="30" y="100" width="1140" height="190" rx="12" fill="none" stroke="#22d3ee" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="46" y="124" class="lane" fill="#22d3ee">LOOP · SEARCH FIRST, THEN FIX</text>
+  <rect x="30" y="310" width="1140" height="220" rx="12" fill="none" stroke="#a78bfa" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="46" y="334" class="lane" fill="#a78bfa">STORE · ONE PER MACHINE, SHARED BY AGENTS</text>
+  <rect x="30" y="550" width="1140" height="200" rx="12" fill="none" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="46" y="574" class="lane" fill="#fbbf24">A NOTE'S LIFE · FROM WORKAROUND TO UPSTREAM FIX</text>
+
+  <!-- ===== lane A arrows ===== -->
+  <line x1="275" y1="192" x2="343" y2="192" stroke="#22d3ee" stroke-width="1.4" marker-end="url(#a-cyan)"/>
+  <line x1="565" y1="192" x2="633" y2="192" stroke="#22d3ee" stroke-width="1.4" marker-end="url(#a-cyan)"/>
+  <text x="600" y="182" class="tiny" text-anchor="middle">0 hits</text>
+  <line x1="855" y1="192" x2="923" y2="192" stroke="#22d3ee" stroke-width="1.4" marker-end="url(#a-cyan)"/>
+  <path d="M 1035 234 L 1035 266 L 455 266 L 455 237" fill="none" stroke="#22d3ee" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#a-cyan)"/>
+  <text x="745" y="258" class="tiny" text-anchor="middle">next time it is found, not debugged again</text>
+
+  <!-- ===== lane A boxes ===== -->
+  <rect x="55" y="150" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="55" y="150" width="220" height="84" rx="6" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="165" y="178" class="name" text-anchor="middle">problem appears</text>
+  <text x="165" y="200" class="sub" text-anchor="middle">a familiar symptom,</text>
+  <text x="165" y="218" class="sub" text-anchor="middle">or a tool that lied</text>
+
+  <rect x="345" y="150" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="345" y="150" width="220" height="84" rx="6" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="455" y="178" class="name" text-anchor="middle">search first</text>
+  <text x="455" y="200" class="sub" text-anchor="middle">fn.sh search: a title</text>
+  <text x="455" y="218" class="sub" text-anchor="middle">weighs more than body</text>
+
+  <rect x="635" y="150" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="635" y="150" width="220" height="84" rx="6" fill="rgba(59,130,246,0.3)" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="745" y="178" class="name" text-anchor="middle">debug</text>
+  <text x="745" y="200" class="sub" text-anchor="middle">the cause is rarely</text>
+  <text x="745" y="218" class="sub" text-anchor="middle">what the symptom says</text>
+
+  <rect x="925" y="150" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="925" y="150" width="220" height="84" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="1035" y="178" class="name" text-anchor="middle">record a note</text>
+  <text x="1035" y="200" class="sub" text-anchor="middle">fn.sh new; a similar one?</text>
+  <text x="1035" y="218" class="sub" text-anchor="middle">then update it</text>
+
+  <!-- ===== lane B arrows ===== -->
+  <path d="M 275 382 L 305 382 L 305 410 L 343 410" fill="none" stroke="#a78bfa" stroke-width="1.4" marker-end="url(#a-violet)"/>
+  <path d="M 275 472 L 305 472 L 305 436 L 343 436" fill="none" stroke="#a78bfa" stroke-width="1.4" marker-end="url(#a-violet)"/>
+  <line x1="565" y1="423" x2="633" y2="423" stroke="#a78bfa" stroke-width="1.4" marker-end="url(#a-violet)"/>
+  <text x="600" y="413" class="tiny" text-anchor="middle">index</text>
+  <line x1="855" y1="423" x2="923" y2="423" stroke="#a78bfa" stroke-width="1.4" marker-end="url(#a-violet)"/>
+  <text x="890" y="413" class="tiny" text-anchor="middle">lint</text>
+
+  <!-- ===== lane B boxes ===== -->
+  <rect x="55" y="352" width="220" height="60" rx="6" fill="#0f172a"/>
+  <rect x="55" y="352" width="220" height="60" rx="6" fill="rgba(30,41,59,0.5)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="165" y="377" class="name" text-anchor="middle">Claude Code</text>
+  <text x="165" y="397" class="sub" text-anchor="middle">~/.claude/skills</text>
+
+  <rect x="55" y="442" width="220" height="60" rx="6" fill="#0f172a"/>
+  <rect x="55" y="442" width="220" height="60" rx="6" fill="rgba(30,41,59,0.5)" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="165" y="467" class="name" text-anchor="middle">Codex CLI</text>
+  <text x="165" y="487" class="sub" text-anchor="middle">~/.codex/skills</text>
+
+  <rect x="345" y="381" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="345" y="381" width="220" height="84" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="455" y="409" class="name" text-anchor="middle">notes/*.md</text>
+  <text x="455" y="431" class="sub" text-anchor="middle">frontmatter + sections:</text>
+  <text x="455" y="449" class="sub" text-anchor="middle">symptom, cause, fix</text>
+
+  <rect x="635" y="381" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="635" y="381" width="220" height="84" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="745" y="409" class="name" text-anchor="middle">INDEX.md</text>
+  <text x="745" y="431" class="sub" text-anchor="middle">generated from notes,</text>
+  <text x="745" y="449" class="sub" text-anchor="middle">never edited by hand</text>
+
+  <rect x="925" y="381" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="925" y="381" width="220" height="84" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="1035" y="409" class="name" text-anchor="middle">lint</text>
+  <text x="1035" y="431" class="sub" text-anchor="middle">stale index,</text>
+  <text x="1035" y="449" class="sub" text-anchor="middle">placeholders, secrets</text>
+
+  <text x="600" y="512" class="tiny" text-anchor="middle">safe in parallel: each agent edits its own note, the script rebuilds the table under a lock</text>
+
+  <!-- ===== lane C arrows ===== -->
+  <line x1="275" y1="642" x2="343" y2="642" stroke="#fbbf24" stroke-width="1.4" marker-end="url(#a-amber)"/>
+  <line x1="565" y1="642" x2="633" y2="642" stroke="#fbbf24" stroke-width="1.4" marker-end="url(#a-amber)"/>
+  <line x1="855" y1="642" x2="923" y2="642" stroke="#fbbf24" stroke-width="1.4" marker-end="url(#a-amber)"/>
+  <text x="890" y="632" class="tiny" text-anchor="middle">touch</text>
+
+  <!-- ===== lane C boxes ===== -->
+  <rect x="55" y="600" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="55" y="600" width="220" height="84" rx="6" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="165" y="628" class="name" text-anchor="middle">active / workaround</text>
+  <text x="165" y="650" class="sub" text-anchor="middle">the pitfall is live,</text>
+  <text x="165" y="668" class="sub" text-anchor="middle">workaround in the note</text>
+
+  <rect x="345" y="600" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="345" y="600" width="220" height="84" rx="6" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="455" y="628" class="name" text-anchor="middle">issue-draft</text>
+  <text x="455" y="650" class="sub" text-anchor="middle">a draft for the author,</text>
+  <text x="455" y="668" class="sub" text-anchor="middle">paths and keys masked</text>
+
+  <rect x="635" y="600" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="635" y="600" width="220" height="84" rx="6" fill="rgba(136,19,55,0.4)" stroke="#fb7185" stroke-width="1.5"/>
+  <text x="745" y="628" class="name" text-anchor="middle">a human posts it</text>
+  <text x="745" y="650" class="sub" text-anchor="middle">reviewed and sent,</text>
+  <text x="745" y="668" class="sub" text-anchor="middle">link → upstream</text>
+
+  <rect x="925" y="600" width="220" height="84" rx="6" fill="#0f172a"/>
+  <rect x="925" y="600" width="220" height="84" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="1035" y="628" class="name" text-anchor="middle">fixed-upstream</text>
+  <text x="1035" y="650" class="sub" text-anchor="middle">fixed by the author,</text>
+  <text x="1035" y="668" class="sub" text-anchor="middle">the index shows #issue</text>
+
+  <text x="600" y="728" class="tiny" text-anchor="middle">three or more cases of one class → status: promoted — the note becomes a skill and stays as the “why”</text>
+
+  <text x="40" y="795" class="foot">the script never touches the network and writes only to the store; anything external is a human decision</text>
+</svg>

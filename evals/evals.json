@@ -13,6 +13,8 @@
     {"prompt": "log this pitfall so we don't hit it again", "should_trigger": true},
     {"prompt": "remember this bug and the workaround", "should_trigger": true},
     {"prompt": "мы уже такое видели? codex exec висит без вывода", "should_trigger": true},
+    {"prompt": "было уже такое? git bash переписывает пути в аргументах", "should_trigger": true},
+    {"prompt": "have we hit this before? pkill -f over ssh exits 255", "should_trigger": true},
     {"prompt": "опять npm ci --dry-run снёс node_modules, разберись", "should_trigger": true},
     {"prompt": "сделай черновик issue в репозиторий cloudflared по нашей заметке", "should_trigger": true},
     {"prompt": "заметка про pkill устарела, обнови её новым случаем", "should_trigger": true},

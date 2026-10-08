@@ -1,18 +1,21 @@
 # field-notes
 
-Скилл для ведения инженерных field notes — находок, которые переживают отдельный проект:
-root cause, workaround, грабли инструмента, кандидаты в скиллы. Работает одинаково в
-**Claude Code** и **Codex CLI**: формат `SKILL.md` у них общий, поэтому репозиторий
-подключается ссылкой в оба каталога скиллов, а хранилище заметок одно на машину — что
-записал один агент, находит другой.
+![field-notes — shared engineering notes for Claude Code and Codex](docs/banner.png)
 
-В репозитории лежит **только скилл**. Сами заметки остаются локально и в git не попадают:
-в них конкретные пути, версии и детали проектов.
+A skill for keeping engineering field notes — findings that outlive a single project: root cause,
+workaround, a tool's pitfalls, candidates for new skills. It works the same way in **Claude Code**
+and **Codex CLI**: both use the `SKILL.md` format, so the repository is linked into both skill
+folders, and there is one store of notes per machine — what one agent records, the other finds.
 
-Старший брат для Hermes Agent — [hermes-field-notes](https://github.com/itpartypattaya/hermes-field-notes):
-те же заметки плюс реестр локальных патчей ядра и Telegram-дашборд.
+[Русская версия](README.ru.md)
 
-## Установка
+The repository holds **only the skill**. The notes themselves stay local and never go into git:
+they contain concrete paths, versions and project details.
+
+Its big brother for Hermes Agent is [hermes-field-notes](https://github.com/itpartypattaya/hermes-field-notes):
+the same notes plus a registry of local core patches and a Telegram dashboard.
+
+## Install
 
 ```bash
 git clone https://github.com/itpartypattaya/field-notes.git
@@ -30,94 +33,110 @@ Linux / macOS:
 sh install.sh
 ```
 
-Скрипт создаёт junction (symlink) в `~/.claude/skills/field-notes` и `~/.codex/skills/field-notes`
-для тех агентов, что установлены, и заводит пустое хранилище, если его ещё нет. Обновление —
-`git pull` в этом каталоге, оба агента подхватят.
+The installer creates a junction (symlink) at `~/.claude/skills/field-notes` and
+`~/.codex/skills/field-notes` for whichever agents are installed, and creates an empty store if
+there is none. To update, `git pull` in this folder; both agents pick it up.
 
-Нужен **Python 3.9+** (только стандартная библиотека). `fn.sh` сам выбирает интерпретатор:
-`$FIELD_NOTES_PYTHON` → `py -3` → `python3` → `python`, каждый пробует запуском — заглушка
-`python3` из Microsoft Store в PATH есть, но не работает. Без Python остаются `root`, `init`,
-`new`, `grep` и `list`.
+Requires **Python 3.9+** (standard library only). `fn.sh` picks the interpreter itself:
+`$FIELD_NOTES_PYTHON` → `py -3` → `python3` → `python`, test-running each one — the Microsoft
+Store `python3` stub is on PATH but does not work. Without Python only `root`, `init`, `new`,
+`grep` and `list` remain.
 
-## Как устроено хранилище
+## The store
 
-Корень выбирается по порядку, первое совпадение выигрывает:
+The root is chosen in this order, first match wins:
 
 1. `$FIELD_NOTES_DIR`
 2. `~/.claude/field-notes`
 3. `~/.codex/field-notes`
-4. иначе создаётся `~/.claude/field-notes`
+4. otherwise `~/.claude/field-notes` is created
 
 ```
 <root>/
-├── INDEX.md            собирается из заметок командой `index`, руками не правится
+├── INDEX.md            generated from the notes by `index`, never edited by hand
 └── notes/
-    └── YYYY-MM-DD-short-slug.md   frontmatter + разделы
+    └── YYYY-MM-DD-short-slug.md   frontmatter + sections
 ```
 
-Формат заметки и что проверяет `lint` — [`references/note-format.md`](references/note-format.md).
+Note format and what `lint` checks: [`references/note-format.md`](references/note-format.md)
+(in Russian, like the skill itself).
 
-## Что делает скилл
+If an agent's global instructions (`~/.codex/AGENTS.md`, `~/.claude/CLAUDE.md`) already name
+their own notes folder, point them at the same root or at `$FIELD_NOTES_DIR`: an agent trusts its
+own instructions before a skill and will silently use a second store.
 
-- **Читает перед починкой.** Знакомый симптом — сначала `search`: поиск с ранжированием,
-  совпадение в заголовке весит больше, чем в тексте, а русские окончания не мешают.
-- **Пишет после разбора.** Если причина оказалась не тем, чем выглядел симптом, — заметка по
-  шаблону: контекст, симптом дословно, root cause, фикс, проверяемый критерий, что увело не туда.
-  `new` останавливается, если похожая заметка уже есть.
-- **Обновляет, а не размножает.** Повтор той же грабли — блок «Обновление» в существующей заметке
-  и `touch`.
-- **Держит индекс в порядке.** `INDEX.md` собирается из frontmatter, поэтому параллельные сессии
-  и разные агенты не затирают строки друг друга; `lint` ловит устаревший индекс, заглушки и то,
-  что похоже на секрет.
-- **Помогает отнести баг автору инструмента.** `issue-draft` собирает черновик issue из заметки
-  и маскирует ключи, токены, домашние пути, IP и email; статус `fixed-upstream` и ссылка
-  `upstream` показывают, где грабля уже исправлена.
-- **Оценивает кандидатов в скиллы.** Заметка описывает случай, скилл — процедуру; критерий
-  перехода описан в `SKILL.md`.
+## When it triggers
 
-## Команды
+On requests to record — "remember this bug", "log this pitfall", «запиши грабли», «давай запишем
+этот баг», «запиши решение в багфикс» — and on questions like "have we hit this before?",
+«мы такое уже видели?». On its own, without being asked: before fixing a familiar symptom, and
+after a debugging session where the cause turned out to be somewhere other than the symptom
+pointed. The skill text is in Russian; trigger phrases work in any language.
+
+## What the skill does
+
+![How field-notes works: search before fixing, one store shared by agents, a note's path to an upstream fix](docs/how-it-works.png)
+
+- **Reads before fixing.** A familiar symptom means `search` first: ranked search where a match in
+  the title weighs more than one in the body, and Russian word endings do not get in the way.
+- **Writes after debugging.** When the cause was not what the symptom suggested, a note from the
+  template: context, the symptom verbatim, root cause, fix, a checkable criterion, what misled us.
+  `new` stops if a similar note already exists.
+- **Updates instead of duplicating.** The same pitfall again means an "Update" block in the
+  existing note and `touch`.
+- **Keeps the index in order.** `INDEX.md` is generated from the frontmatter, so parallel sessions
+  and different agents do not overwrite each other's rows; `lint` catches a stale index, template
+  placeholders and anything that looks like a secret.
+- **Helps report the bug upstream.** `issue-draft` builds an issue draft from a note and masks
+  keys, tokens, home paths, IPs and e-mails; the `fixed-upstream` status and the `upstream` link
+  show where a pitfall is already fixed.
+- **Spots skill candidates.** A note describes a case, a skill describes a procedure; the criterion
+  for turning one into the other is in `SKILL.md`.
+
+## Commands
 
 ```bash
-sh scripts/fn.sh search <слова…>        # поиск с ранжированием (--status, --area, --json)
-sh scripts/fn.sh grep '<строка>'         # сырой поиск точной строки
+sh scripts/fn.sh search <words…>        # ranked search (--status, --area, --json)
+sh scripts/fn.sh grep '<string>'         # raw search for an exact string
 sh scripts/fn.sh new <slug> --title "…" --area "…"
-sh scripts/fn.sh index                  # пересобрать INDEX.md
-sh scripts/fn.sh lint                   # проверить хранилище
+sh scripts/fn.sh index                  # rebuild INDEX.md
+sh scripts/fn.sh lint                   # check the store
 sh scripts/fn.sh touch <id> [--status fixed-upstream] [--upstream URL]
-sh scripts/fn.sh issue-draft <id>       # черновик issue, ничего не публикует
+sh scripts/fn.sh issue-draft <id>       # issue draft; publishes nothing
 sh scripts/fn.sh list | root | init
-sh scripts/fn.sh migrate --from <root> [--apply]   # переход со старого формата 1.x
+sh scripts/fn.sh migrate --from <root> [--apply]   # move from the 1.x format
 ```
 
-`--read-only` у любой команды гарантирует, что ничего не будет записано; `--json` — вывод для
-машины. Сети скрипт не касается.
+`--read-only` on any command guarantees nothing is written; `--json` gives machine output. The
+script never touches the network.
 
-## Переход с 1.x
+## Moving from 1.x
 
-В 1.x метаданные были строкой `**Date:** · **Area:** · **Status:**`, а индекс вели руками.
-Сделай копию хранилища, затем:
+In 1.x the metadata was a `**Date:** · **Area:** · **Status:**` line and the index was kept by
+hand. Make a copy of the store, then:
 
 ```bash
-sh scripts/fn.sh migrate --from ~/.claude/field-notes            # пробный прогон
+sh scripts/fn.sh migrate --from ~/.claude/field-notes            # dry run
 sh scripts/fn.sh migrate --from ~/.claude/field-notes --apply
 sh scripts/fn.sh lint
 ```
 
-Имена файлов не меняются, поэтому ссылки на заметки из других мест остаются рабочими. Что
-куда переезжает — в [`references/note-format.md`](references/note-format.md).
+File names do not change, so links to notes from elsewhere keep working. What moves where is in
+[`references/note-format.md`](references/note-format.md).
 
-## Тесты
+## Tests
 
 ```bash
 python3 -m unittest discover -s tests
 ```
 
-`evals/evals.json` — фразы, на которые скилл должен и не должен срабатывать; прогон ручной.
+`evals/evals.json` lists phrases the skill should and should not trigger on; run them by hand in a
+fresh session.
 
-## Автор
+## Author
 
-Антон Васьков — Telegram [@passone](https://t.me/passone), GitHub [itpartypattaya](https://github.com/itpartypattaya).
+Anton Vaskov — Telegram [@passone](https://t.me/passone), GitHub [itpartypattaya](https://github.com/itpartypattaya).
 
-## Лицензия
+## License
 
 [MIT](LICENSE)
