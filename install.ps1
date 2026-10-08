@@ -47,18 +47,26 @@ if (-not (Test-Path (Join-Path $root 'notes'))) {
 }
 $index = Join-Path $root 'INDEX.md'
 if (-not (Test-Path $index)) {
-    @'
-# Field Notes
-
-Инженерные находки, которые переживают отдельный проект: root cause, workaround, грабли
-инструмента, кандидаты в скиллы. Общее хранилище для всех агентов на машине.
-Как вести — скилл `field-notes`.
-
-## Индекс
-
-| Date | Note | Area | Status | Candidate skill | Summary |
-|---|---|---|---|---|---|
-'@ | Set-Content -Path $index -Encoding utf8
+    # индекс с маркером генерации собирает fieldnotes.py; без Python — пустой файл, lint попросит index
+    $py = $null
+    $candidates = @(
+        @{ Exe = 'py'; Args = @('-3') },
+        @{ Exe = 'python3'; Args = @() },   # из WindowsApps — заглушка магазина, отсеется пробным запуском
+        @{ Exe = 'python'; Args = @() }
+    )
+    foreach ($cand in $candidates) {
+        try {
+            & $cand.Exe @($cand.Args) -c 'import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)' 2>$null
+            if ($LASTEXITCODE -eq 0) { $py = $cand; break }
+        } catch {}
+    }
+    $script = Join-Path (Join-Path $src 'scripts') 'fieldnotes.py'
+    if ($py) {
+        & $py.Exe @($py.Args) $script init --root $root | Out-Null
+    } else {
+        "# Field Notes`n`nИндекс собирает ``fieldnotes.py index`` (нужен Python 3.9+).`n" | Set-Content -Path $index -Encoding utf8
+        Write-Host "! Python 3.9+ не найден: поиск, индекс и lint работать не будут"
+    }
     Write-Host "+ создан $index"
 }
 Write-Host "хранилище заметок: $root"

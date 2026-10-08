@@ -1,0 +1,29 @@
+{
+  "_comment": "Проверка срабатывания скилла field-notes по описанию. Прогон ручной: дать агенту фразу в свежей сессии и посмотреть, загрузил ли он скилл. should_trigger=false — фразы-соседи, где скилл мешал бы.",
+  "skill": "field-notes",
+  "triggers": [
+    {"prompt": "запиши грабли", "should_trigger": true},
+    {"prompt": "давай запишем этот баг", "should_trigger": true},
+    {"prompt": "запиши решение в багфикс", "should_trigger": true},
+    {"prompt": "запомни этот баг, чтобы в следующий раз не наступить", "should_trigger": true},
+    {"prompt": "сохрани грабли с git bash и таймзоной", "should_trigger": true},
+    {"prompt": "внеси это в заметки, полдня убили", "should_trigger": true},
+    {"prompt": "добавь в список багов", "should_trigger": true},
+    {"prompt": "это надо записать как field note", "should_trigger": true},
+    {"prompt": "log this pitfall so we don't hit it again", "should_trigger": true},
+    {"prompt": "remember this bug and the workaround", "should_trigger": true},
+    {"prompt": "мы уже такое видели? codex exec висит без вывода", "should_trigger": true},
+    {"prompt": "опять npm ci --dry-run снёс node_modules, разберись", "should_trigger": true},
+    {"prompt": "сделай черновик issue в репозиторий cloudflared по нашей заметке", "should_trigger": true},
+    {"prompt": "заметка про pkill устарела, обнови её новым случаем", "should_trigger": true},
+    {"prompt": "напиши README для проекта", "should_trigger": false},
+    {"prompt": "обнови HANDOFF.md по итогам сессии", "should_trigger": false},
+    {"prompt": "оформи ADR про выбор базы данных", "should_trigger": false},
+    {"prompt": "запомни, что мой email mr.example@gmail.com", "should_trigger": false},
+    {"prompt": "почини опечатку в функции parse_date", "should_trigger": false},
+    {"prompt": "сделай план миграции на Postgres", "should_trigger": false},
+    {"prompt": "запиши встречу в календарь на пятницу", "should_trigger": false},
+    {"prompt": "добавь в changelog строку про версию 2.1", "should_trigger": false},
+    {"prompt": "напиши пост в телеграм-канал про новый релиз", "should_trigger": false}
+  ]
+}

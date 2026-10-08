@@ -1,5 +1,17 @@
-# <Заголовок-утверждение: что именно неверно и что из-за этого происходит>
-- **Date:** YYYY-MM-DD · **Area:** <инструмент / область> · **Status:** active | fixed locally | deferred | promoted to skill
+---
+schema_version: 1
+id: {{id}}
+title: {{title_yaml}}
+date: {{date}}
+area: {{area_yaml}}
+status: active
+summary: "<одна плотная строка для индекса: механизм, цифры, признак узнавания>"
+tool_version: ""
+upstream: ""
+candidate_skill: ""
+tags: []
+---
+# {{title}}
 
 ## Контекст
 Что делали, в каком окружении: версии, ОС, чем запускали.
