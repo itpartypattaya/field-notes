@@ -23,7 +23,7 @@ import re  # noqa: E402
 import time  # noqa: E402
 from pathlib import Path  # noqa: E402
 
-VERSION = "2.0.0"
+VERSION = "2.0.1"
 SCHEMA_VERSION = 1
 SKILL_DIR = Path(__file__).resolve().parents[1]
 TEMPLATE = SKILL_DIR / "assets" / "note-template.md"
@@ -31,26 +31,35 @@ INDEX_MARKER = "<!-- fieldnotes:index — всё ниже собирает `fiel
 
 STATUSES = ("active", "workaround", "needs-verification", "fixed-upstream", "obsolete", "promoted")
 REQUIRED = ("schema_version", "id", "title", "date", "area", "status", "summary")
+SUPPORTED_SCHEMAS = (1,)
 VERIFY_DAYS = 30
 EXIT_OK, EXIT_ERR, EXIT_EXISTS, EXIT_NOTFOUND = 0, 1, 3, 4
 
+_TOK = r"[A-Za-z0-9_-]"  # алфавит большинства токенов; границы — по нему, а не по \b
 SECRET_PATTERNS = [
-    ("ключ вида sk-", re.compile(r"\bsk-[A-Za-z0-9_-]{20,}")),
-    ("токен GitHub", re.compile(r"\b(ghp|gho|ghs|ghu)_[A-Za-z0-9]{30,}|\bgithub_pat_[A-Za-z0-9_]{30,}")),
-    ("токен Slack", re.compile(r"\bxox[abposr]-[A-Za-z0-9-]{10,}")),
-    ("ключ AWS", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
-    ("приватный ключ", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
-    ("токен Telegram-бота", re.compile(r"\b\d{8,10}:[A-Za-z0-9_-]{35}\b")),
-    ("Bearer-токен", re.compile(r"\bBearer\s+[A-Za-z0-9._~+/-]{20,}")),
+    ("ключ вида sk-", re.compile(r"(?<![\w-])sk-[A-Za-z0-9_-]{20,}")),
+    ("ключ Stripe", re.compile(r"(?<![\w-])[rs]k_(?:live|test)_[A-Za-z0-9]{16,}")),
+    ("токен GitHub", re.compile(r"(?<![\w-])gh[pousr]_[A-Za-z0-9]{30,}|(?<![\w-])github_pat_[A-Za-z0-9_]{30,}")),
+    ("токен GitLab", re.compile(r"(?<![\w-])gl(?:pat|dt|rt|ptt|cbt)-[A-Za-z0-9_-]{20,}")),
+    ("токен Slack", re.compile(r"(?<![\w-])xox[abposr]-[A-Za-z0-9-]{10,}")),
+    ("ключ AWS", re.compile(r"(?<![A-Z0-9])(?:AKIA|ASIA)[0-9A-Z]{16}(?![A-Z0-9])")),
+    ("ключ Google API", re.compile(r"(?<![\w-])AIza[0-9A-Za-z_-]{35}")),
+    ("приватный ключ", re.compile(r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----")),
+    ("токен Telegram-бота", re.compile(r"(?<![\w-])\d{8,10}:" + _TOK + r"{35}(?!" + _TOK + r")")),
+    ("Bearer-токен", re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]{20,}")),
+    ("JWT", re.compile(r"(?<![\w-])eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}")),
 ]
 PEM_BLOCK = re.compile(r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?(?:-----END [A-Z0-9 ]*PRIVATE KEY-----|\Z)",
                        re.DOTALL)
+# имя пользователя в пути: без пробелов — до разделителя; с пробелами — только если дальше идёт
+# разделитель («C:\Users\Anton Vaskov\x»), иначе слово после пробела — уже обычный текст
+_USER = r"""(?:[^\\/\s"'`<>|]+(?: [^\\/\s"'`<>|]+)+(?=[\\/])|[^\\/\s"'`<>|]+)"""
 MASKS = [
-    (re.compile(r"/[a-zA-Z]/Users/[^/\s]+"), "~"),                    # Git Bash: /c/Users/<имя>
-    (re.compile(r"[A-Za-z]:[\\/]+Users[\\/]+[^\\/\s]+", re.IGNORECASE), "~"),
-    (re.compile(r"\b[A-Za-z]--Users-[^-\s/\\]+"), "~"),                 # слаг проекта Claude: C--Users-<имя>-…
-    (re.compile(r"/home/[^/\s]+"), "~"),
-    (re.compile(r"/Users/[^/\s]+"), "~"),
+    (re.compile(r"/[a-zA-Z]/Users/" + _USER), "~"),                    # Git Bash: /c/Users/<имя>
+    (re.compile(r"[A-Za-z]:[\\/]+Users[\\/]+" + _USER, re.IGNORECASE), "~"),
+    (re.compile(r"\b[A-Za-z]--Users-[^\s/\\]+"), "~"),                  # слаг проекта Claude: C--Users-<имя>-… целиком
+    (re.compile(r"/home/" + _USER), "~"),
+    (re.compile(r"/Users/" + _USER), "~"),
     (re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b"), "<ip>"),
     (re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+"), "<email>"),
     (re.compile(r"-100\d{6,}"), "<chat_id>"),
@@ -118,45 +127,54 @@ def today():
 # ---------------------------------------------------------------------------
 
 class Lock:
-    """Файл-замок O_CREAT|O_EXCL с токеном владельца; замок старше `stale` секунд снимается."""
+    """Системная блокировка файла (`fcntl.flock` / `msvcrt.locking`). Её держит открытый дескриптор,
+    и ОС снимает её сама, когда процесс-владелец завершился, — поэтому «протухших» замков нет и ломать
+    чужой замок по возрасту не нужно. Сам файл `.fieldnotes.lock` не удаляется."""
 
-    def __init__(self, path, stale=120, wait=30):
-        self.path, self.stale, self.wait = Path(path), stale, wait
-        self.held = False
+    def __init__(self, path, wait=30):
+        self.path, self.wait = Path(path), wait
+        self.fh = None
+
+    def _try(self):
+        if os.name == "nt":
+            import msvcrt
+            self.fh.seek(0)
+            msvcrt.locking(self.fh.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(self.fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
 
     def __enter__(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.fh = open(self.path, "a+b")
         deadline = time.monotonic() + self.wait
-        self.token = f"{os.getpid()}:{time.time_ns()}"
         while True:
             try:
-                fd = os.open(str(self.path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-                os.write(fd, self.token.encode())
-                os.close(fd)
-                self.held = True
+                self._try()
                 return self
-            except FileExistsError:
-                try:
-                    age = time.time() - self.path.stat().st_mtime
-                except OSError:
-                    continue
-                if age > self.stale:
-                    try:
-                        self.path.unlink()
-                    except OSError:
-                        pass
-                    continue
+            except OSError:
                 if time.monotonic() > deadline:
+                    self.fh.close()
+                    self.fh = None
                     raise FieldNotesError(f"хранилище занято другим процессом: {self.path}")
-                time.sleep(0.2)
+                time.sleep(0.1)
 
     def __exit__(self, *exc):
-        if self.held:
-            try:
-                if self.path.read_text(encoding="utf-8", errors="replace") == self.token:
-                    self.path.unlink()
-            except OSError:
-                pass
+        if self.fh is None:
+            return
+        try:
+            if os.name == "nt":
+                import msvcrt
+                self.fh.seek(0)
+                msvcrt.locking(self.fh.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(self.fh.fileno(), fcntl.LOCK_UN)
+        except OSError:
+            pass
+        finally:
+            self.fh.close()
+            self.fh = None
 
 
 def store_lock(ctx):
@@ -176,6 +194,7 @@ def atomic_write(path, text):
 # frontmatter: плоское подмножество YAML, которое читает и yaml.safe_load
 # ---------------------------------------------------------------------------
 
+_OPENER = re.compile(r"---[ \t]*\n")
 _KEY_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*)\s*:(?:\s+(.*))?$")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _BARE_OK = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.\-/]*$")
@@ -184,11 +203,17 @@ _YAML_WORDS = {"yes", "no", "on", "off", "true", "false", "null", "y", "n", "~"}
 
 
 def _strip_comment(raw):
-    out, quote = [], None
+    """Отрезать комментарий `#` вне кавычек. Внутри "…" обратный слеш экранирует следующий символ,
+    поэтому `"C:\\\\"` закрывается на второй кавычке; незакрытая кавычка — ошибка."""
+    out, quote, escaped = [], None, False
     for i, ch in enumerate(raw):
         if quote:
             out.append(ch)
-            if ch == quote and not (quote == '"' and i and raw[i - 1] == "\\"):
+            if escaped:
+                escaped = False
+            elif ch == "\\" and quote == '"':
+                escaped = True
+            elif ch == quote:
                 quote = None
             continue
         if ch in "\"'":
@@ -196,17 +221,26 @@ def _strip_comment(raw):
         elif ch == "#" and (i == 0 or raw[i - 1] in " \t"):
             break
         out.append(ch)
+    if quote:
+        raise ValueError("незакрытая кавычка")
     return "".join(out).strip()
 
 
 def _unquote(token):
     token = token.strip()
-    if len(token) >= 2 and token[0] == token[-1] == '"':
+    if token[:1] == '"':
+        if len(token) < 2 or token[-1] != '"':
+            raise ValueError(f"значение в кавычках не закрыто: {token[:40]}")
         try:
-            return json.loads(token)
+            value = json.loads(token)
         except ValueError:
-            return token[1:-1]
-    if len(token) >= 2 and token[0] == token[-1] == "'":
+            raise ValueError(f"битое значение в кавычках: {token[:40]}") from None
+        if not isinstance(value, str):
+            raise ValueError(f"битое значение в кавычках: {token[:40]}")
+        return value
+    if token[:1] == "'":
+        if len(token) < 2 or token[-1] != "'":
+            raise ValueError(f"значение в кавычках не закрыто: {token[:40]}")
         return token[1:-1].replace("''", "'")
     return token
 
@@ -231,14 +265,19 @@ def _split_list(inner):
             buf = []
         else:
             buf.append(ch)
+    if quote:
+        raise ValueError("незакрытая кавычка в списке")
     if "".join(buf).strip():
         items.append("".join(buf))
     return [_unquote(i) for i in items if i.strip()]
 
 
 def parse_value(raw):
+    """Значение поля; ValueError — если оно битое (кавычки, скобки)."""
     raw = _strip_comment(raw or "")
-    if raw.startswith("[") and raw.endswith("]"):
+    if raw.startswith("["):
+        if not raw.endswith("]"):
+            raise ValueError("список не закрыт ']'")
         return _split_list(raw[1:-1])
     value = _unquote(raw)
     if raw == value and re.fullmatch(r"\d+", value):
@@ -249,13 +288,15 @@ def parse_value(raw):
 def split_frontmatter(text):
     """(meta, порядок ключей, тело, ошибки)."""
     text = text.lstrip("\ufeff").replace("\r\n", "\n")
-    if not text.startswith("---\n"):
+    opener = _OPENER.match(text)
+    if not opener:
         return {}, [], text, ["нет frontmatter (файл должен начинаться с '---')"]
-    m = re.search(r"^---[ \t]*$", text[4:], re.MULTILINE)
+    start = opener.end()
+    m = re.search(r"^---[ \t]*$", text[start:], re.MULTILINE)
     if not m:
         return {}, [], text, ["frontmatter не закрыт строкой '---'"]
-    block = text[4:4 + m.start()].rstrip("\n")
-    rest = text[4 + m.end():]
+    block = text[start:start + m.start()].rstrip("\n")
+    rest = text[start + m.end():]
     body = rest[1:] if rest.startswith("\n") else rest
     meta, order, errors = {}, [], []
     for n, line in enumerate(block.split("\n"), start=2):
@@ -272,7 +313,11 @@ def split_frontmatter(text):
         if key in meta:
             errors.append(f"строка {n}: ключ '{key}' повторяется")
             continue
-        meta[key] = parse_value(km.group(2) or "")
+        try:
+            meta[key] = parse_value(km.group(2) or "")
+        except ValueError as exc:
+            errors.append(f"строка {n}: {exc}")
+            continue
         order.append(key)
     return meta, order, body, errors
 
@@ -335,8 +380,11 @@ class Note:
         return str(self.get("status") or "active")
 
     def date(self, key="date"):
+        value = str(self.get(key) or "")
+        if not _DATE_RE.match(value):  # fromisoformat в 3.11+ принимает и 20260101, и 2026-W01-1
+            return None
         try:
-            return dt.date.fromisoformat(str(self.get(key) or ""))
+            return dt.date.fromisoformat(value)
         except ValueError:
             return None
 
@@ -404,6 +452,9 @@ def lint(ctx, notes):
         for key in REQUIRED:
             if m.get(key) in (None, "", []):
                 out.append(("error", where, f"нет поля '{key}'"))
+        if m.get("schema_version") not in (None, "") and m.get("schema_version") not in SUPPORTED_SCHEMAS:
+            out.append(("error", where, f"schema_version {m.get('schema_version')!r} не поддерживается "
+                                        f"(эта версия скрипта понимает {', '.join(map(str, SUPPORTED_SCHEMAS))})"))
         if m.get("status") and m.get("status") not in STATUSES:
             out.append(("error", where, f"status '{m.get('status')}' — допустимы: {', '.join(STATUSES)}"))
         if m.get("id") and str(m.get("id")) != note.id:
@@ -524,13 +575,27 @@ WEIGHTS = (("title", 5), ("tags", 4), ("area", 3), ("summary", 3), ("body", 1))
 def _words(terms):
     out = []
     for term in terms:
-        tokens = (t.strip(".:/+-") for t in re.findall(r"[\w.:/+-]+", term.casefold()))
-        out.extend(t for t in tokens if len(t) > 1)
+        tokens = (t.strip(".:/-") for t in re.findall(r"[\w.:/+#-]+", term.casefold()))
+        out.extend(t for t in tokens if t)
     return out
+
+
+def _is_exact(word):
+    """Короткие слова и слова с + или # ищутся целым словом: иначе «r» совпадёт с любым текстом,
+    а «c++» — с любым «c»."""
+    return len(word) <= 2 or bool(re.search(r"[+#]", word))
+
+
+def _count(text, word):
+    if _is_exact(word):
+        return len(re.findall(r"(?<![\w+#])" + re.escape(word) + r"(?![\w+#])", text))
+    return text.count(word)
 
 
 def _variants(word):
     """Слово и его основа: «таймзоны» найдёт «таймзона». Грубая замена морфологии."""
+    if _is_exact(word):
+        return (word,)
     if len(word) >= 6 and re.search(r"[а-яё]", word):
         return (word, word[:max(4, len(word) - 2)])
     if len(word) >= 7:
@@ -550,7 +615,7 @@ def _field_text(note, field):
 def _snippet(body, variants):
     for line in body.split("\n"):
         low = line.casefold()
-        if line.strip() and not line.startswith("#") and any(v in low for vs in variants for v in vs):
+        if line.strip() and not line.startswith("#") and any(_count(low, v) for vs in variants for v in vs):
             line = line.strip()
             return line[:200] + ("…" if len(line) > 200 else "")
     return ""
@@ -572,8 +637,8 @@ def search(notes, terms, limit=10, status=None, area=None):
         for vs in variants:
             word_score = 0
             for text, weight in fields:
-                exact = text.count(vs[0])
-                stem = text.count(vs[-1]) - exact if len(vs) > 1 else 0
+                exact = _count(text, vs[0])
+                stem = _count(text, vs[-1]) - exact if len(vs) > 1 else 0
                 word_score += weight * (2 * exact + stem)
             if word_score:
                 matched += 1
@@ -647,7 +712,9 @@ _STATUS_MAP = {"fixed locally": "workaround", "workaround": "workaround", "needs
                "needs-verification": "needs-verification", "obsolete": "obsolete", "promoted": "promoted",
                "promoted to skill": "promoted", "active": "active", "deferred": "active",
                "fixed upstream": "fixed-upstream", "fixed-upstream": "fixed-upstream", "fixed": "workaround"}
-_META_LINE = re.compile(r"^-\s+\*\*Date:\*\*.*$", re.MULTILINE)
+# старый формат: первая непустая строка — `# Заголовок`, следующая непустая — строка метаданных;
+# в любом другом месте (пример в блоке кода, цитата) такую строку не трогаем
+_LEGACY_HEAD = re.compile(r"\A\s*(#[ \t]+[^\n]+)\n(?:[ \t]*\n)*(-\s+\*\*Date:\*\*[^\n]*)(?:\n|\Z)")
 
 
 def _map_status(raw):
@@ -713,14 +780,18 @@ def migrate_note(path, index_rows):
     """(новый текст или None, проблемы) для заметки старого формата; уже мигрированная — (None, [])."""
     text = Path(path).read_text(encoding="utf-8").replace("\r\n", "\n").lstrip("\ufeff")
     stem = Path(path).stem
-    if text.startswith("---\n"):
+    if re.match(r"---[ \t]*$", text.split("\n", 1)[0]):
+        # уже frontmatter (или битый frontmatter) — не переписываем, битый отдаём как проблему
         _, _, _, errors = split_frontmatter(text)
-        return None, errors
+        return None, errors or []
     problems = []
     row = index_rows.get(stem, {})
-    meta_line = _META_LINE.search(text)
-    m = re.search(r"\*\*Area:\*\*\s*([^\n]*?)\s*·\s*\*\*Status:\*\*\s*(.+)$", meta_line.group(0)) if meta_line else None
-    title = _h1(text) or _clean_md(re.sub(r"\[(.*)\]\(.*\)", r"\1", row.get("note", ""))) or stem
+    head = _LEGACY_HEAD.match(text)
+    meta_line = head.group(2) if head else None
+    m = re.search(r"\*\*Area:\*\*\s*([^\n]*?)\s*·\s*\*\*Status:\*\*\s*(.+)$", meta_line) if meta_line else None
+    first = re.match(r"\A\s*#[ \t]+([^\n]+)", text)
+    title = (first.group(1).strip() if first else "") \
+        or _clean_md(re.sub(r"\[(.*)\]\(.*\)", r"\1", row.get("note", ""))) or stem
     date = stem[:10] if _DATE_RE.match(stem[:10]) else ""
     status_raw = m.group(2) if m else row.get("status", "")
     meta = {
@@ -734,7 +805,7 @@ def migrate_note(path, index_rows):
     }
     try:
         base = dt.date.fromisoformat(date)
-        meta_text = meta_line.group(0) if meta_line else ""
+        meta_text = meta_line or ""
         heads = re.findall(r"^##\s+Обновлени[ея].*$", text, re.MULTILINE)
         updated = _dates_after(base, [meta_text.split("**Area:**")[0], row.get("date", ""), *heads])
         if updated:
@@ -752,9 +823,9 @@ def migrate_note(path, index_rows):
     if not meta_line:
         problems.append("нет строки **Date:** · **Area:** · **Status:** — area/status по индексу")
     body = text
-    if meta_line:
-        body = text[:meta_line.start()] + text[meta_line.end():].lstrip("\n")
-        body = re.sub(r"^(#\s+.+\n)(?!\n)", r"\1\n", body, count=1, flags=re.MULTILINE)
+    if head:
+        # вырезаем ровно найденную строку метаданных в начале; остальное тело — байт в байт
+        body = head.group(1) + "\n\n" + text[head.end():].lstrip("\n")
     return dump_frontmatter(meta) + "\n" + body.lstrip("\n"), problems
 
 
@@ -767,7 +838,10 @@ def out_json(data):
 
 
 def cmd_root(ctx, args):
-    print(ctx.store)
+    if args.json:
+        out_json({"root": str(ctx.store), "exists": ctx.notes_dir.is_dir()})
+    else:
+        print(ctx.store)
     return EXIT_OK
 
 

@@ -5,6 +5,7 @@ import io
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -309,6 +310,192 @@ class MigrateTest(StoreCase):
         self.assertEqual(code, fn.EXIT_ERR)
         self.assertIn("ПРОПУЩЕНА", out)
         self.assertEqual(bad.read_text(encoding="utf-8"), "---\ntitle: x\n  nested: y\n---\nbody\n")
+
+
+class Review201Test(StoreCase):
+    """Находки ревью Codex для 2.0.1."""
+
+    # 1. блокировка: живого владельца не ломаем; умер — ОС сняла блокировку
+    def test_lock_is_not_broken_while_owner_lives_and_released_after_exit(self):
+        lock_path = self.tmp / "store" / ".fieldnotes.lock"
+        holder = subprocess.Popen(
+            [sys.executable, "-c",
+             "import sys, time; sys.path.insert(0, sys.argv[1]); import fieldnotes as fn\n"
+             "with fn.Lock(sys.argv[2]):\n    print('held', flush=True); time.sleep(4)",
+             str(REPO / "scripts"), str(lock_path)],
+            stdout=subprocess.PIPE, text=True)
+        try:
+            self.assertEqual(holder.stdout.readline().strip(), "held")
+            old = os.path.getmtime(lock_path) - 3600
+            os.utime(lock_path, (old, old))           # «старый» замок — по возрасту его больше не ломаем
+            with self.assertRaises(fn.FieldNotesError):
+                with fn.Lock(lock_path, wait=0.5):
+                    pass
+        finally:
+            holder.kill()
+            holder.wait()
+            holder.stdout.close()
+        with fn.Lock(lock_path, wait=2):              # владелец умер — блокировку сняла ОС
+            pass
+
+    # 2. migrate не трогает строку **Date:** внутри блока кода
+    def test_migrate_keeps_date_line_inside_code_block(self):
+        src = self.tmp / "legacy"
+        (src / "notes").mkdir(parents=True)
+        text = ("# Note\n- **Date:** 2026-09-01 · **Area:** x · **Status:** active\n\n## Reproduction\n"
+                "```markdown\n- **Date:** this is required example content\n```\n")
+        path = src / "notes" / "2026-09-01-a.md"
+        path.write_text(text, encoding="utf-8")
+        self.run_cli("migrate", "--from", str(src), "--root", str(src), "--apply")
+        note = fn.Note(path)
+        self.assertIn("- **Date:** this is required example content", note.body)
+        self.assertEqual(note.get("area"), "x")
+
+    def test_migrate_without_header_line_keeps_body_whole(self):
+        src = self.tmp / "legacy"
+        (src / "notes").mkdir(parents=True)
+        text = "# Note\n\nТекст.\n\n```\n- **Date:** пример\n```\n"
+        path = src / "notes" / "2026-09-01-a.md"
+        path.write_text(text, encoding="utf-8")
+        self.run_cli("migrate", "--from", str(src), "--root", str(src), "--apply")
+        self.assertEqual(fn.Note(path).body.lstrip("\n"), text)
+
+    # 3. '--- ' с пробелом — frontmatter, битый не переписывается
+    def test_opener_with_trailing_space_is_frontmatter_and_damaged_one_is_skipped(self):
+        meta, _, _, errors = fn.split_frontmatter("--- \ntitle: x\n---\nbody\n")
+        self.assertEqual((meta, errors), ({"title": "x"}, []))
+        src = self.tmp / "bad"
+        (src / "notes").mkdir(parents=True)
+        bad = src / "notes" / "2026-01-01-x.md"
+        bad.write_text("--- \ntitle: \"broken\n---\nbody\n", encoding="utf-8")
+        code, out, _ = self.run_cli("migrate", "--from", str(src), "--root", str(src), "--apply")
+        self.assertEqual(code, fn.EXIT_ERR)
+        self.assertEqual(bad.read_text(encoding="utf-8"), "--- \ntitle: \"broken\n---\nbody\n")
+
+    # 4. кавычки: незакрытая — ошибка; экранированный слеш перед кавычкой и комментарий
+    def test_quote_parsing(self):
+        self.assertTrue(fn.split_frontmatter('---\ntitle: "unfinished\n---\n')[3])
+        self.assertTrue(fn.split_frontmatter("---\ntags: [a, \"b\n---\n")[3])
+        self.assertTrue(fn.split_frontmatter("---\ntags: [a, b\n---\n")[3])
+        meta, _, _, errors = fn.split_frontmatter('---\ncustom: "C:\\\\" # annotation\n---\n')
+        self.assertEqual((meta, errors), ({"custom": "C:\\"}, []))
+        path = self.write_note("2026-09-01-a")
+        path.write_text(path.read_text(encoding="utf-8").replace('title: "Заголовок"', 'title: "Заголовок'),
+                        encoding="utf-8")
+        self.assertNotEqual(self.run_cli("touch", "a")[0], 0)   # битую заметку touch не пересохраняет
+
+    # 6. имя пользователя с пробелом
+    def test_mask_user_names_with_spaces(self):
+        for raw in ("C:\\Users\\Anton Vaskov\\project", "/home/Anton Vaskov/project",
+                    "/c/Users/Anton Vaskov/project", "/Users/Anton Vaskov/project",
+                    "~/.claude/projects/C--Users-Anton-Vaskov-Documents-x/a.jsonl"):
+            with self.subTest(raw=raw):
+                masked = fn.mask(raw)
+                self.assertNotIn("Anton", masked)
+                self.assertNotIn("Vaskov", masked)
+        self.assertEqual(fn.mask("C:\\Users\\anton is home"), "~ is home")   # текст после пробела не съеден
+
+    # 7. токены: маска и lint видят одно и то же
+    def test_tokens_masked_and_linted(self):
+        tokens = ["123456789:" + "A" * 34 + "-", "ghr_" + "a" * 36, "glpat-" + "a" * 20,
+                  "bearer " + "a" * 30, "AIza" + "b" * 35, "sk_live_" + "c" * 24,
+                  "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnop"]
+        for tok in tokens:
+            with self.subTest(tok=tok[:12]):
+                self.assertNotIn(tok, fn.mask("x " + tok + " y"))
+                shutil.rmtree(self.store, ignore_errors=True)
+                self.write_note("2026-09-01-a", summary="ключ " + tok)
+                found = [m for lvl, _, m in fn.lint(self.ctx(), fn.load_notes(self.ctx()))
+                         if lvl == "error" and "секрет" in m]
+                self.assertTrue(found)
+
+    def test_ordinary_text_is_not_a_secret(self):
+        self.write_note("2026-09-01-a", summary="sk-learn и task-ids, Bearer auth описан в RFC 6750, a:b")
+        self.run_cli("index")
+        self.assertEqual([m for _, _, m in fn.lint(self.ctx(), fn.load_notes(self.ctx()))], [])
+
+    # 8. даты и версия схемы
+    def test_strict_dates_and_schema_version(self):
+        for meta, needle in ((dict(date="20260101"), "date должно быть"),
+                             (dict(updated="2026-W01-1"), "updated должно быть"),
+                             (dict(schema_version=999), "schema_version 999")):
+            with self.subTest(needle=needle):
+                shutil.rmtree(self.store, ignore_errors=True)
+                self.write_note("2026-09-01-a", **meta)
+                msgs = [m for lvl, _, m in fn.lint(self.ctx(), fn.load_notes(self.ctx())) if lvl == "error"]
+                self.assertTrue(any(needle in m for m in msgs), msgs)
+
+    # 9. короткие технические названия
+    def test_search_short_technical_terms(self):
+        self.write_note("2026-09-01-cpp", title="C++ compiler падает", summary="x")
+        self.write_note("2026-09-02-py", title="Python compiler", summary="y")
+        self.write_note("2026-09-03-cs", title="C# и R в одном проекте", summary="z")
+        notes = fn.load_notes(self.ctx())
+        ids = lambda q: [n.id for _, n, _ in fn.search(notes, q)]  # noqa: E731
+        self.assertEqual(ids(["C++", "compiler"]), ["2026-09-01-cpp"])
+        self.assertEqual(ids(["C#"]), ["2026-09-03-cs"])
+        self.assertEqual(ids(["R"]), ["2026-09-03-cs"])
+        self.assertEqual(ids(["c++"]), ["2026-09-01-cpp"])
+
+    # 10. root --json
+    def test_root_json(self):
+        code, out, _ = self.run_cli("root", "--json", "--root", str(self.store))
+        self.assertEqual(json.loads(out)["root"], str(self.store))
+
+
+@unittest.skipUnless(shutil.which("sh"), "нужен sh (Git Bash, Linux, macOS)")
+class ShellWrapperTest(unittest.TestCase):
+    """fn.sh: флаги, режим без Python, буквальный grep."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="fn-sh-"))
+        self.root = self.tmp / "store"
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def sh(self, *argv, no_python=False):
+        env = {**os.environ, "PYTHONUTF8": "1"}
+        env.pop("FIELD_NOTES_DIR", None)
+        if no_python:
+            env["FIELD_NOTES_NO_PYTHON"] = "1"
+        r = subprocess.run(["sh", str(REPO / "scripts" / "fn.sh"), *argv], capture_output=True,
+                           encoding="utf-8", errors="replace", env=env)
+        return r.returncode, r.stdout, r.stderr
+
+    def root_arg(self):
+        return ["--root", self.root.as_posix()]
+
+    def test_root_honours_root_and_json(self):
+        code, out, _ = self.sh("root", *self.root_arg(), "--json")
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out), {"root": self.root.as_posix(), "exists": False})
+
+    def test_fallback_respects_read_only_and_never_overwrites(self):
+        code, _, err = self.sh("init", *self.root_arg(), "--read-only", no_python=True)
+        self.assertEqual(code, 1)
+        self.assertFalse(self.root.exists())
+        code, out, _ = self.sh("new", "demo", *self.root_arg(), no_python=True)
+        self.assertEqual(code, 0, out)
+        path = Path(next((self.root / "notes").glob("*-demo.md")))
+        path.write_text("мой текст", encoding="utf-8")
+        code, _, _ = self.sh("new", "demo", *self.root_arg(), no_python=True)
+        self.assertEqual(code, 3)
+        self.assertEqual(path.read_text(encoding="utf-8"), "мой текст")
+        self.assertEqual(self.sh("new", "Bad/slug", *self.root_arg(), no_python=True)[0], 2)
+
+    def test_grep_is_literal_and_reports_no_match(self):
+        (self.root / "notes").mkdir(parents=True)
+        (self.root / "INDEX.md").write_text("# i\n", encoding="utf-8")
+        (self.root / "notes" / "2026-01-01-a.md").write_text("plain x\nbracket [x]\nкириллица\n",
+                                                               encoding="utf-8")
+        code, out, _ = self.sh("grep", "[x]", *self.root_arg())
+        self.assertEqual(code, 0)
+        self.assertIn("bracket [x]", out)
+        self.assertNotIn("plain x", out)
+        self.assertEqual(self.sh("grep", "[", *self.root_arg())[0], 0)
+        self.assertEqual(self.sh("grep", "a.b", *self.root_arg())[0], 1)
+        self.assertEqual(self.sh("grep", "нет-такого", *self.root_arg())[0], 1)
 
 
 class RootTest(unittest.TestCase):
