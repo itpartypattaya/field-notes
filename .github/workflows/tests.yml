@@ -17,8 +17,11 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.9", "3.11", "3.13"]
+        python-version: ["3.11", "3.13"]
         include:
+          # 24.04: ubuntu-latest moved to 26.04, which has no Python 3.9 build
+          - os: ubuntu-24.04
+            python-version: "3.9"
           - os: windows-latest
             python-version: "3.12"
     steps:
